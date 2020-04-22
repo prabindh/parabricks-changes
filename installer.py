@@ -10,6 +10,9 @@ import shutil
 import time
 from distutils.dir_util import copy_tree
 
+NVIDIA_DOCKER = "docker"
+#NVIDIA_DOCKER = "nvidia-docker"
+
 def GetUserDecision():
   inputVar = input
   try:
@@ -121,10 +124,10 @@ def check_curl():
   run_and_return ("command -v curl", "curl --version failed. Please check installation of curl.", True)
 
 def check_nvidia_docker(archImage):
-  cmd_return_code = subprocess.call("command -v nvidia-docker", stdout = log_file, stderr = log_file, shell=True)
+  cmd_return_code = subprocess.call("command -v "+NVIDIA_DOCKER, stdout = log_file, stderr = log_file, shell=True)
   if  cmd_return_code != 0:
     return False
-  cmd_return_code = subprocess.call(["nvidia-docker", "run", "--rm", "nvidia/cuda" + archImage + ":9.0-base-ubuntu16.04", "nvidia-smi"] , stdout = log_file, stderr = log_file)
+  cmd_return_code = subprocess.call([NVIDIA_DOCKER, "run", "--rm", "--gpus", "all", "nvidia/cuda" + archImage + ":9.0-base-ubuntu16.04", "nvidia-smi"] , stdout = log_file, stderr = log_file)
   if  cmd_return_code != 0:
     return False
   else:
@@ -136,30 +139,14 @@ def check_docker(cpu_only):
     archImage = "-ppc64le"
 
   if check_nvidia_docker(archImage) == True:
-    return "nvidia-docker"
+    return NVIDIA_DOCKER
 
   print("Checking docker installation\n")
   run_and_return("command -v docker", "docker not found. Please check installation of docker.", True)
   if cpu_only:
     return "docker"
-  cmd_return_code = subprocess.call(["docker", "run", "--rm", "nvidia/cuda" + archImage + ":9.0-base-ubuntu16.04", "nvidia-smi"] , stdout = log_file, stderr = log_file)
-  if  cmd_return_code != 0:
-    cmd_return_code = subprocess.call(["docker", "run", "--runtime=nvidia", "--rm", "nvidia/cuda" + archImage + ":9.0-base-ubuntu16.04", "nvidia-smi"] , stdout = log_file, stderr = log_file)
-    if cmd_return_code != 0:
-      print("docker does not have nvidia runtime. Please add nvidia runtime to docker or install nvidia-docker. Exiting...")
-      InstallAbort()
-    else:
-      return "docker-runtime"
   else:
-    return "docker"
-  #cmd_proc = subprocess.Popen(["docker", "info", "--format=\"{{ json .Runtimes}}\""], stdout = subprocess.PIPE)
-  #print cmd_proc.stdout
-  #if "nvidia" in cmd_proc.stdout.readline():
-  #  print("docker with runtime nvidia found")
-  #  return "docker"
-  #else:
-  #  print("docker does not have nvidia runtime. Please add nvidia runtime to docker or install nvidia-docker. Exiting...")
-  #  InstallAbort()
+    print(textwrap.fill("Error in docker installation. Check install log in tmp folder", 120))
 
 def check_singularity():
   print("Checking singularity installation\n")
@@ -451,5 +438,4 @@ if __name__ == '__main__':
       GetEULAAgreement(scriptDir, install_args)
       print_selection(install_args)
       install_parabricks(scriptDir)
-
 
